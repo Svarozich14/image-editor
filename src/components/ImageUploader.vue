@@ -1,14 +1,4 @@
-<template>
-  <v-file-input
-    label="Select Image"
-    accept="image/*"
-    prepend-icon="mdi-camera"
-    variant="filled"
-    @update:model-value="onFileChange"
-    @click:clear="store.originalImage = null"
-  ></v-file-input>
-</template>
-
+// Simple file upload component using Vuetify
 <script setup lang="ts">
 import { useImageEditorStore } from '@/stores/imageEditor'
 
@@ -16,10 +6,20 @@ const store = useImageEditorStore()
 
 const onFileChange = (file: File | File[] | null) => {
   const selectedFile = Array.isArray(file) ? file : file
-
-  if (selectedFile) {
-    const imageUrl = URL.createObjectURL(selectedFile)
-    store.setImage(imageUrl, selectedFile.name)
+  if (selectedFile instanceof File) {
+    store.setImage(selectedFile)
+  } else {
+    store.clearImage()
   }
 }
 </script>
+
+<template>
+  <v-file-input
+    label="Upload Image"
+    accept="image/*"
+    prepend-icon="mdi-camera"
+    variant="filled"
+    @update:model-value="onFileChange"
+  ></v-file-input>
+</template>

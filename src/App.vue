@@ -1,93 +1,89 @@
 <template>
   <v-app>
-    <!-- Navigation Sidebar -->
-    <v-navigation-drawer width="350" permanent>
+    <v-navigation-drawer width="360" permanent elevation="3">
       <v-container>
-        <h2 class="text-h6 mb-4">Image Settings</h2>
-        
-        <!-- Upload Component -->
-        <ImageUploader class="mb-6" />
+        <ImageUploader class="mb-4" />
 
-        <div v-if="store.originalImage">
-          <!-- Crop Toggle Button -->
-          <div class="mb-4">
-            <v-btn 
-              :color="isCropping ? 'success' : 'secondary'" 
-              block 
-              variant="elevated"
-              @click="isCropping = !isCropping"
+        <div v-if="store.previewUrl" class="editor-controls">
+          <div v-if="!isCropping">
+            <v-btn block color="primary" @click="isCropping = true" class="mb-4">Edit Crop</v-btn>
+          </div>
+          <div v-else class="d-flex gap-2 mb-4">
+            <v-btn color="success" class="flex-grow-1" @click="handleApplyCrop">Apply</v-btn>
+            <v-btn color="grey-lighten-1" class="flex-grow-1" @click="isCropping = false"
+              >Cancel</v-btn
             >
-              {{ isCropping ? 'Apply Crop Area' : 'Edit Crop' }}
-            </v-btn>
           </div>
 
           <v-divider class="my-4"></v-divider>
 
-          <!-- Standard Filter Sliders -->
-          <v-slider
-            v-model="store.edits.brightness"
-            label="Brightness"
-            min="0" max="200" step="1" thumb-label
-            :disabled="isCropping"
-          ></v-slider>
+          <!-- Sliders with aligned labels -->
+          <div class="sliders-container">
+            <v-slider
+              v-model="store.edits.brightness"
+              label="Brightness"
+              min="0"
+              max="200"
+              :disabled="isCropping"
+              density="compact"
+              hide-details
+            ></v-slider>
+            <v-slider
+              v-model="store.edits.contrast"
+              label="Contrast"
+              min="0"
+              max="200"
+              :disabled="isCropping"
+              density="compact"
+              hide-details
+            ></v-slider>
+            <v-slider
+              v-model="store.edits.saturation"
+              label="Saturation"
+              min="0"
+              max="200"
+              :disabled="isCropping"
+              density="compact"
+              hide-details
+            ></v-slider>
 
-          <v-slider
-            v-model="store.edits.contrast"
-            label="Contrast"
-            min="0" max="200" step="1" thumb-label
-            :disabled="isCropping"
-          ></v-slider>
+            <v-divider class="my-4"></v-divider>
 
-          <v-slider
-            v-model="store.edits.saturation"
-            label="Saturation"
-            min="0" max="200" step="1" thumb-label
-            :disabled="isCropping"
-          ></v-slider>
+            <v-slider
+              v-model="store.edits.grayscale"
+              label="Grayscale"
+              min="0"
+              max="100"
+              :disabled="isCropping"
+              density="compact"
+              hide-details
+            ></v-slider>
+            <v-slider
+              v-model="store.edits.sepia"
+              label="Sepia"
+              min="0"
+              max="100"
+              :disabled="isCropping"
+              density="compact"
+              hide-details
+            ></v-slider>
+          </div>
 
-          <!-- Bonus: Additional Filter Sliders [1] -->
-          <v-slider
-            v-model="store.edits.grayscale"
-            label="Grayscale"
-            min="0" max="100" step="1" thumb-label
-            :disabled="isCropping"
-          ></v-slider>
-
-          <v-slider
-            v-model="store.edits.sepia"
-            label="Sepia"
-            min="0" max="100" step="1" thumb-label
-            :disabled="isCropping"
-          ></v-slider>
-
-          <v-divider class="my-4"></v-divider>
-
-          <!-- Control Buttons -->
-          <v-btn color="error" variant="outlined" block @click="resetAll" class="mb-2">
-            Reset All
-          </v-btn>
-          
-          <v-btn color="primary" block @click="downloadImage" class="mb-2">
-            Download Result
-          </v-btn>
-
-          <!-- Bonus: Export Operations as JSON [1] -->
-          <v-btn color="info" variant="tonal" block @click="exportOperationsJson">
-            Download JSON Recipe
-          </v-btn>
+          <v-btn block color="error" variant="outlined" @click="handleReset" class="mt-6 mb-2"
+            >Reset All</v-btn
+          >
+          <v-btn block color="primary" @click="exportImage" class="mb-2">Download Image</v-btn>
+          <v-btn block color="info" variant="tonal" @click="exportOperationsJson"
+            >Download JSON</v-btn
+          >
         </div>
       </v-container>
     </v-navigation-drawer>
 
-    <!-- Main Viewport -->
-    <v-main class="bg-grey-lighten-3">
+    <v-main class="bg-grey-lighten-4">
       <v-container fluid class="fill-height d-flex justify-center align-center">
-        <div v-if="store.originalImage" class="editor-viewport">
-          <ImagePreview :is-cropping="isCropping" />
-        </div>
-        <div v-else class="text-grey">
-          Please upload an image to start editing
-        </div>
+        <ImagePreview ref="previewRef" v-if="store.previewUrl" :is-cropping="isCropping" />
+        <div v-else class="text-grey text-h6">Please upload an image to start editing</div>
       </v-container>
     </v-main>
   </v-app>
@@ -100,35 +96,35 @@ import { useImageExporter } from '@/composables/useImageExporter'
 import ImageUploader from '@/components/ImageUploader.vue'
 import ImagePreview from '@/components/ImagePreview.vue'
 
-// Store and state initialization
 const store = useImageEditorStore()
-// Destructuring both main and bonus export functions [1]
-const { exportImage, exportOperationsJson } = useImageExporter()
 const isCropping = ref(false)
+const previewRef = ref<InstanceType<typeof ImagePreview> | null>(null)
+const { exportImage, exportOperationsJson } = useImageExporter()
 
-// Logic to reset all changes and exit crop mode [1]
-const resetAll = () => {
+const handleApplyCrop = () => {
+  previewRef.value?.applyCrop()
   isCropping.value = false
-  store.resetEdits()
 }
 
-// Logic to trigger the export process via Canvas
-const downloadImage = async () => {
-  try {
-    await exportImage()
-  } catch (error) {
-    console.error('Export failed:', error)
-  }
+const handleReset = () => {
+  isCropping.value = false
+  store.resetEditor()
 }
 </script>
 
-<style>
-.editor-viewport {
-  background: white;
-  padding: 10px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-  display: flex;
-  justify-content: center;
-  align-items: center;
+<style scoped>
+/* Align slider labels to a fixed width for a clean UI */
+.sliders-container :deep(.v-label) {
+  min-width: 90px;
+  flex: none;
+  font-size: 0.875rem;
+}
+
+.v-slider {
+  margin-bottom: 12px;
+}
+
+.gap-2 {
+  gap: 8px;
 }
 </style>

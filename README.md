@@ -1,66 +1,51 @@
 # Vue 3 Non-Destructive Image Editor
 
-This project is a browser-based image editor developed for the printing industry context. The primary focus is on the **modeling of edits** rather than direct pixel manipulation, ensuring a completely non-destructive workflow.
+A professional-grade, browser-based image editor designed for the printing industry context. This application implements a strict non-destructive workflow, where the original image data is preserved as a "Source of Truth," and all edits are derived in real-time through a mathematical operation model.
 
 ## 🚀 Stack & Setup
 
 - **Framework:** Vue 3 (Composition API)
-- **State Management:** Pinia
-- **UI Framework:** Vuetify 3
-- **Language:** TypeScript
-- **Image Processing:** CropperJS (v1.6.x) & HTML5 Canvas API
+- **State Management:** Pinia (Centralized Edit Model)
+- **UI Library:** Vuetify 3 (Material Design)
+- **Language:** TypeScript (Isolated Domain Types)
+- **Testing:** Vitest (Unit testing for pure logic)
+- **Core Dependencies:** CropperJS (v1.6.x) & HTML5 Canvas API
 
 ### Installation
+
 ```bash
-npm i
+npm install
+Development
 npm run dev
+Testing
+# Runs Vitest for unit testing pure utility functions
+npm run test
+🌟 Key Features
+Core Requirements
+High-Res Upload: Local file selection with centralized memory management.
+Interactive Cropping: Powered by CropperJS with a professional "Crop Draft" state.
+Live Adjustments: Real-time processing for Brightness, Contrast, and Saturation.
+Non-Destructive Reset: Instant reversion to the original state without reloading the source file.
+High-Quality Export: Downloads processed results as JPEGs via an off-screen Canvas pipeline.
+★ Bonus Tasks Implemented
+Additional Filters: Built-in support for Grayscale and Sepia processing.
+JSON Operation Manifest: Exports a "Recipe" file (.json) describing the exact operations applied, allowing for identical reproduction of the result on the original source.
+🧠 Architectural Decisions & Engineering
+1. Unified Image Pipeline
+To prevent the common "Preview ≠ Export" bug, this app uses a single source of truth for image loading. Both the UI preview and the export utility share the same loadImage method in the Pinia store, ensuring 100% rendering consistency across the entire application.
+2. UI/Business Logic Separation (Crop Draft)
+To optimize performance and user experience, we implemented a Crop Draft logic. While the user is manipulating the crop box, changes are accumulated locally within the component. The global Pinia store remains untouched until the user explicitly clicks "Apply". This prevents unnecessary heavy reactive updates and manifest re-calculations during active resizing or dragging.
+3. Race Condition Protection
+Handling high-res image uploads in a rapid UI can lead to stale data. We implemented a Generation Counter (loadingGeneration) within the store. If a new image is uploaded before the previous one finishes decoding, the stale request is automatically discarded, preventing UI glitches.
+4. Memory Safety (ObjectURL Lifecycle)
+To prevent memory leaks, the store manages a centralized ObjectURL lifecycle. It automatically calls URL.revokeObjectURL() whenever an image is replaced or cleared, ensuring the browser's memory remains lean.
+5. Pure Function Testing
+Following industry best practices, we extracted the core business logic (filter string generation, manifest creation) into Pure Functions. These are covered by a Vitest suite, ensuring the "math" behind the editor remains reliable regardless of UI changes.
+6. Canvas vs. CSS Filters
+While CSS filters are cheaper for previews, we chose a Canvas-based preview pipeline. This trade-off ensures that what the user sees on their screen is 100% identical to the final exported file—a critical requirement for printing industry standards.
+📁 Project Structure
+/src/types: Isolated domain types (editor.ts) for better scalability.
+/src/utils: Pure, testable utility functions.
+/src/tests: Unit tests for core operations.
+/src/stores: Centralized state with the unified loading pipeline.
 ```
-
-## ✨ Features
-
-### Basic Requirements
-- **Image Upload:** Load any local image via file input.
-- **Cropping:** Interactive cropping tool to select the target area.
-- **Real-time Filters:** Live sliders for **Brightness**, **Contrast**, and **Saturation**.
-- **Non-Destructive Workflow:** Original source remains untouched; the preview is derived from the edit model.
-- **Reset:** Ability to revert all changes and view the original image instantly.
-- **Export:** High-quality JPEG download of the final result.
-
-### ★ Bonus Features
-- **Additional Filters:** Implemented **Grayscale** and **Sepia** sliders.
-- **JSON Manifest Export:** Downloads a "recipe" file alongside the image. This JSON describes all applied operations, allowing for exact reproduction of the results on the original source.
-
-## 🧠 Key Decisions & Trade-offs
-
-### 1. Non-Destructive Operation Model
-The core of the application is a **State-Driven Model**. Instead of modifying image pixels directly, every user action (slider movement, crop selection) updates a central "recipe" object in the Pinia store. 
-- **Benefit:** This allows for an instant "Reset" functionality and ensures the original file quality is never degraded by intermediate edits.
-- **Implementation:** The preview is "derived" by applying CSS filters and Canvas clipping on the fly, keeping the source `Blob` intact.
-
-### 2. Hybrid Rendering Pipeline
-I implemented a two-tier rendering strategy:
-- **UI Feedback:** Uses CSS `filter` properties for instant, hardware-accelerated feedback on sliders.
-- **Final Export:** Uses the **HTML5 Canvas API**. During export, the app draws the original image to an off-screen canvas, applies the `ctx.filter` string (matching the CSS values), and clips it according to the stored crop coordinates. This ensures the output resolution matches the source, not the screen preview.
-
-### 3. Choice of Libraries (CropperJS)
-I chose **CropperJS v1.6.x** over the newer v2.x (beta).
-- **Reasoning:** Version 1.x is highly stable, has extensive documentation, and integrates seamlessly with Vue 3's `ref` system without the overhead of the experimental Web Components found in v2.x.
-- **Robustness:** The integration includes `cropper.destroy()` calls in the `onUnmounted` lifecycle hook to prevent memory leaks in a single-page application context.
-
-### 4. Operation Manifest (The JSON Recipe)
-The bonus JSON export follows a flat schema representing the `edits` state:
-```json
-{
-  "sourceFile": "image.jpg",
-  "operations": {
-    "brightness": 120,
-    "contrast": 110,
-    "crop": { "x": 10, "y": 20, "width": 500, "height": 500 }
-  }
-}
-```
-This design is intentional: it is human-readable, serializable, and can be used by any backend or automated process to "replay" the exact same transformations on the high-resolution original.
-
-### 5. Technical Robustness
-- **Memory Safety:** The application uses `URL.revokeObjectURL()` after every download to free up browser memory, which is critical when handling large print-ready images.
-- **Error Handling:** Image loading within the export pipeline is wrapped in native Promises with explicit `onerror` rejection, preventing the UI from hanging if an image fails to load.
